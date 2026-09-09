@@ -3,7 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { checkActiveWorkspaceCollectionsForUpdates } from 'providers/ReduxStore/slices/openapi-sync';
 import { normalizePath } from 'utils/common/path';
 
-const POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes
+// Poll ticker checks every 15s against each collection's autoCheckInterval
+const POLL_TICK_INTERVAL = 15 * 1000;
 
 const useOpenAPISyncPolling = () => {
   const dispatch = useDispatch();
@@ -40,15 +41,21 @@ const useOpenAPISyncPolling = () => {
       return;
     }
 
-    // Initial check after a short delay (to let the app initialize)
+    // Initial check after app mounts
     const initialTimeout = setTimeout(() => {
       dispatch(checkActiveWorkspaceCollectionsForUpdates());
-    }, 10000); // 10 seconds after app starts
+    }, 2000);
 
-    // Set up polling interval
+    // Set up polling interval ticker
     intervalRef.current = setInterval(() => {
       dispatch(checkActiveWorkspaceCollectionsForUpdates());
-    }, POLL_INTERVAL);
+    }, POLL_TICK_INTERVAL);
+
+    // Check immediately when user switches focus back to Bruno
+    const handleWindowFocus = () => {
+      dispatch(checkActiveWorkspaceCollectionsForUpdates({ force: true }));
+    };
+    window.addEventListener('focus', handleWindowFocus);
 
     return () => {
       clearTimeout(initialTimeout);
@@ -56,6 +63,7 @@ const useOpenAPISyncPolling = () => {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      window.removeEventListener('focus', handleWindowFocus);
     };
   }, [dispatch, pollingEnabled, hasSyncableCollections]);
 

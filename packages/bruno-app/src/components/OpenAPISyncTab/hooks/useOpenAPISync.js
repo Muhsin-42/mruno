@@ -197,11 +197,24 @@ const useOpenAPISync = (collection) => {
     }
   };
 
+  const collectionUpdate = useSelector((state) => state.openapiSync?.collectionUpdates?.[collection.uid]);
+  const hasUpdates = collectionUpdate?.hasUpdates;
+  const remoteSpecHash = collectionUpdate?.remoteSpecHash;
+
   useEffect(() => {
     if (isConfigured && !drift?.specDrift && !drift?.fetching) {
       checkForUpdates();
     }
   }, [isConfigured]);
+
+  // Live auto-refresh: When background polling or window focus detects new spec changes,
+  // automatically reload the drift comparison so the tab updates live without clicking "Check for updates"
+  useEffect(() => {
+    if (!isConfigured || !hasUpdates || !remoteSpecHash) return;
+    if (!drift?.fetching && !isLoading && drift?.specDrift?.remoteSpecHash !== remoteSpecHash) {
+      checkForUpdates();
+    }
+  }, [hasUpdates, remoteSpecHash, isConfigured, drift?.fetching, isLoading, drift?.specDrift?.remoteSpecHash]);
 
   // Reload drift when the collection's HTTP item count differs from what was recorded at the last fetch.
   useEffect(() => {

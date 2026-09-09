@@ -1,10 +1,17 @@
 import React from 'react';
+import { useSelector } from 'react-redux';
+import { useTheme } from 'providers/Theme';
 import GradientCloseButton from './GradientCloseButton';
 import StatusBadge from 'ui/StatusBadge';
 import { IconVariable, IconSettings, IconRun, IconFolder, IconDatabase, IconWorld, IconHome, IconFileCode, IconConfetti, IconServer2 } from '@tabler/icons';
 import OpenAPISyncIcon from 'components/Icons/OpenAPISync';
 
-const SpecialTab = ({ handleCloseClick, type, tabName, handleDoubleClick, hasDraft }) => {
+const SpecialTab = ({ handleCloseClick, type, tabName, handleDoubleClick, hasDraft, tab }) => {
+  const { theme } = useTheme();
+  const collectionUpdates = useSelector((state) => state.openapiSync?.collectionUpdates || {});
+  const hasOpenApiUpdates = tab?.collectionUid && collectionUpdates[tab.collectionUid]?.hasUpdates;
+  const hasOpenApiError = tab?.collectionUid && collectionUpdates[tab.collectionUid]?.error;
+
   const getTabInfo = (type, tabName) => {
     switch (type) {
       case 'collection-settings': {
@@ -90,7 +97,15 @@ const SpecialTab = ({ handleCloseClick, type, tabName, handleDoubleClick, hasDra
       case 'openapi-sync': {
         return (
           <>
-            <OpenAPISyncIcon size={14} className="special-tab-icon flex-shrink-0" />
+            <div className="relative flex items-center">
+              <OpenAPISyncIcon size={14} className="special-tab-icon flex-shrink-0" />
+              {(hasOpenApiUpdates || hasOpenApiError) && (
+                <span
+                  className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full"
+                  style={{ backgroundColor: hasOpenApiError ? (theme?.status?.danger?.text || '#ef4444') : (theme?.status?.warning?.text || '#f59e0b') }}
+                />
+              )}
+            </div>
             <span className="ml-1 tab-name mr-1">OpenAPI</span>
           </>
         );

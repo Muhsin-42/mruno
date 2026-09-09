@@ -29,6 +29,7 @@ import OpenAPISyncIcon from 'components/Icons/OpenAPISync';
 import { toggleCollection, collapseFullCollection } from 'providers/ReduxStore/slices/collections';
 import { mountCollection, moveCollectionAndPersist, handleCollectionItemDrop, pasteItem, showInFolder, saveCollectionSecurityConfig } from 'providers/ReduxStore/slices/collections/actions';
 import { useDispatch, useSelector } from 'react-redux';
+import { useTheme } from 'providers/Theme';
 import { addTab, makeTabPermanent } from 'providers/ReduxStore/slices/tabs';
 import { setFocusedSidebarPath } from 'providers/ReduxStore/slices/app';
 import toast from 'react-hot-toast';
@@ -93,6 +94,12 @@ const Collection = ({ collection, searchText }) => {
   const isCollectionFocused = useSelector(isTabForItemActive({ itemUid: collection.uid }));
   const { hasCopiedItems } = useSelector((state) => state.app.clipboard);
   const menuDropdownRef = useRef(null);
+
+  const { theme } = useTheme();
+  const collectionUpdates = useSelector((state) => state.openapiSync?.collectionUpdates || {});
+  const hasOpenApiSyncConfigured = collection?.brunoConfig?.openapi?.[0]?.sourceUrl;
+  const hasOpenApiUpdates = hasOpenApiSyncConfigured && collectionUpdates[collection.uid]?.hasUpdates;
+  const hasOpenApiError = hasOpenApiSyncConfigured && collectionUpdates[collection.uid]?.error;
 
   // 'Move into Workspace' is available for collections opened from outside the current workspace.
   const activeWorkspace = useSelector((state) =>
@@ -414,6 +421,12 @@ const Collection = ({ collection, searchText }) => {
       id: 'sync-openapi',
       leftSection: OpenAPISyncIcon,
       label: 'OpenAPI',
+      rightSection: (hasOpenApiUpdates || hasOpenApiError) ? (
+        <span
+          className="w-2 h-2 rounded-full"
+          style={{ backgroundColor: hasOpenApiError ? (theme.status?.danger?.text || '#ef4444') : (theme.status?.warning?.text || '#f59e0b') }}
+        />
+      ) : null,
       onClick: openOpenAPISyncTab
     },
     ...(hasCopiedItems
@@ -570,8 +583,24 @@ const Collection = ({ collection, searchText }) => {
               onDoubleClick={handleCollectionDoubleClick}
             />
           </ActionIcon>
-          <div className="ml-1 w-full" id="sidebar-collection-name" title={collection.name}>
-            {collection.name}
+          <div className="ml-1 flex items-center gap-1.5 overflow-hidden flex-grow" id="sidebar-collection-name" title={collection.name}>
+            <span className="truncate">{collection.name}</span>
+            {hasOpenApiUpdates && (
+              <span
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ backgroundColor: theme.status?.warning?.text || '#f59e0b' }}
+                title="OpenAPI updates available"
+                data-testid="sidebar-openapi-update-indicator"
+              />
+            )}
+            {hasOpenApiError && (
+              <span
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ backgroundColor: theme.status?.danger?.text || '#ef4444' }}
+                title="OpenAPI update check failed"
+                data-testid="sidebar-openapi-error-indicator"
+              />
+            )}
           </div>
           {isLoading ? <IconLoader2 className="animate-spin mx-1" size={18} strokeWidth={1.5} /> : null}
         </div>

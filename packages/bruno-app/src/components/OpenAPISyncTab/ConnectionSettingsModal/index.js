@@ -19,7 +19,7 @@ const ConnectionSettingsModal = ({ collection, sourceUrl, onSave, onDisconnect, 
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef(null);
 
-  const intervals = [5, 15, 30, 60];
+  const intervals = [1, 2, 5, 15, 30, 60];
 
   const effectiveSource = mode === 'file' ? filePath : url.trim();
   const canSave = mode === 'file' ? !!effectiveSource : isHttpUrl(effectiveSource.trim());
