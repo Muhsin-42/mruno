@@ -8,6 +8,10 @@ const notarize = async function (params) {
     return;
   }
 
+  if (!process.env.APPLE_ID) {
+    return;
+  }
+
   let appId = 'com.usebruno.app';
 
   let appPath = path.join(params.appOutDir, `${params.packager.appInfo.productFilename}.app`);

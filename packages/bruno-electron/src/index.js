@@ -23,6 +23,17 @@ if (isDev && process.env.ELECTRON_USER_DATA_PATH) {
     + `\t${app.getPath('userData')} -> ${process.env.ELECTRON_USER_DATA_PATH}`);
 
   app.setPath('userData', process.env.ELECTRON_USER_DATA_PATH);
+} else {
+  try {
+    const currentPath = app.getPath('userData');
+    const legacyBrunoPath = path.join(app.getPath('appData'), 'Bruno');
+    if (!fs.existsSync(currentPath) && fs.existsSync(legacyBrunoPath)) {
+      fs.cpSync(legacyBrunoPath, currentPath, { recursive: true });
+      console.log('Migrated user data from Bruno to Mruno');
+    }
+  } catch (e) {
+    console.warn('Failed to migrate Bruno user data:', e);
+  }
 }
 
 // Command line switches
@@ -243,7 +254,7 @@ app.on('ready', async () => {
       preload: path.join(__dirname, 'preload.js'),
       webviewTag: true
     },
-    title: 'Bruno',
+    title: 'Mruno',
     icon: path.join(__dirname, 'about/256x256.png'),
     titleBarStyle: isMac ? 'hiddenInset' : isWindows ? 'hidden' : undefined,
     frame: isLinux ? false : true,

@@ -2,7 +2,7 @@ require('dotenv').config({ path: process.env.DOTENV_PATH });
 
 const config = {
   appId: 'com.usebruno.app',
-  productName: 'Bruno',
+  productName: 'Mruno',
   electronVersion: '37.6.1',
   directories: {
     buildResources: 'resources',
@@ -15,35 +15,32 @@ const config = {
     }
   ],
   files: ['**/*'],
-  afterSign: 'notarize.js',
+  afterSign: process.env.APPLE_ID ? 'notarize.js' : null,
   mac: {
     artifactName: '${name}_${version}_${arch}_${os}.${ext}',
     category: 'public.app-category.developer-tools',
     target: [
       {
-        target: 'pkg',
-        arch: ['x64', 'arm64']
-      },
-      {
         target: 'dmg',
-        arch: ['x64', 'arm64']
+        arch: ['arm64', 'x64']
       },
       {
         target: 'zip',
-        arch: ['x64', 'arm64']
+        arch: ['arm64', 'x64']
       }
     ],
     icon: 'resources/icons/mac/icon.icns',
-    hardenedRuntime: true,
-    identity: 'Anoop MD (W7LPPWA48L)',
+    hardenedRuntime: Boolean(process.env.CSC_NAME),
+    identity: process.env.CSC_NAME || null,
     entitlements: 'resources/entitlements.mac.plist',
     entitlementsInherit: 'resources/entitlements.mac.plist',
     notarize: false,
     requirements: 'resources/app-requirements.txt',
     protocols: [
       {
-        name: 'Bruno',
+        name: 'Mruno',
         schemes: [
+          'mruno',
           'bruno'
         ]
       }
