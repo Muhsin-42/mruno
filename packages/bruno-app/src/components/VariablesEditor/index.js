@@ -63,9 +63,9 @@ const EnvVariables = ({ collection, theme }) => {
 };
 
 const RuntimeVariables = ({ collection, theme }) => {
-  const runtimeVariablesFound = Object.keys(collection.runtimeVariables).length > 0;
+  const runtimeVariablesFound = Object.keys(collection.runtimeVariables || {}).length > 0;
 
-  const runtimeVariableArray = Object.entries(collection.runtimeVariables).map(([name, value]) => ({
+  const runtimeVariableArray = Object.entries(collection.runtimeVariables || {}).map(([name, value]) => ({
     name,
     value,
     secret: false

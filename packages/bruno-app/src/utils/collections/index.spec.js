@@ -1,5 +1,5 @@
 const { describe, it, expect } = require('@jest/globals');
-import { mergeHeaders, transformRequestToSaveToFilesystem, getCollectionItemCounts } from './index';
+import { mergeHeaders, transformRequestToSaveToFilesystem, getCollectionItemCounts, getVariableScope } from './index';
 
 describe('mergeHeaders', () => {
   it('should include headers from collection, folder and request (with correct precedence)', () => {
@@ -130,5 +130,90 @@ describe('getCollectionItemCounts', () => {
   it('returns zero counts for empty or missing items', () => {
     expect(getCollectionItemCounts([])).toEqual({ folderCount: 0, requestCount: 0 });
     expect(getCollectionItemCounts(undefined)).toEqual({ folderCount: 0, requestCount: 0 });
+  });
+});
+
+describe('getVariableScope', () => {
+  it('returns runtime scope when variable exists in collection.runtimeVariables', () => {
+    const collection = {
+      uid: 'col-1',
+      runtimeVariables: {
+        identifier: '7000000000'
+      }
+    };
+
+    const scopeInfo = getVariableScope('identifier', collection, null);
+    expect(scopeInfo).toEqual({
+      type: 'runtime',
+      value: '7000000000',
+      data: { collection, variableName: 'identifier', value: '7000000000' }
+    });
+  });
+
+  it('prioritizes runtime variables over request, collection, and environment variables', () => {
+    const collection = {
+      uid: 'col-1',
+      runtimeVariables: {
+        token: 'runtime-token'
+      },
+      root: {
+        request: {
+          vars: {
+            req: [
+              { name: 'token', value: 'collection-token', enabled: true }
+            ]
+          }
+        }
+      },
+      activeEnvironmentUid: 'env-1',
+      environments: [
+        {
+          uid: 'env-1',
+          variables: [
+            { name: 'token', value: 'env-token', enabled: true }
+          ]
+        }
+      ]
+    };
+
+    const item = {
+      uid: 'req-1',
+      request: {
+        vars: {
+          req: [
+            { name: 'token', value: 'req-token', enabled: true }
+          ]
+        }
+      }
+    };
+
+    const scopeInfo = getVariableScope('token', collection, item);
+    expect(scopeInfo).toEqual({
+      type: 'runtime',
+      value: 'runtime-token',
+      data: { collection, variableName: 'token', value: 'runtime-token' }
+    });
+  });
+
+  it('falls back to request scope when variable is not in runtimeVariables', () => {
+    const collection = {
+      uid: 'col-1',
+      runtimeVariables: {}
+    };
+
+    const item = {
+      uid: 'req-1',
+      request: {
+        vars: {
+          req: [
+            { name: 'myVar', value: 'myVal', enabled: true }
+          ]
+        }
+      }
+    };
+
+    const scopeInfo = getVariableScope('myVar', collection, item);
+    expect(scopeInfo.type).toBe('request');
+    expect(scopeInfo.value).toBe('myVal');
   });
 });

@@ -77,6 +77,8 @@
     "build:schema-types": "npm run build --workspace=packages/bruno-schema-types",
     "build:electron": "node ./scripts/build-electron.js",
     "package:mruno": "npm run build:web && node ./scripts/build-electron.js",
+    "install:mruno": "rm -rf /Applications/Mruno.app && cp -R packages/bruno-electron/out/mac-arm64/Mruno.app /Applications/",
+    "update:mruno": "npm run package:mruno && npm run install:mruno",
     "build:electron:mac": "./scripts/build-electron.sh mac",
     "build:electron:win": "./scripts/build-electron.sh win",
     "build:electron:linux": "./scripts/build-electron.sh linux",

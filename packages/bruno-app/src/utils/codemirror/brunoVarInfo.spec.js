@@ -1,5 +1,8 @@
 import { interpolate } from '@usebruno/common';
 import { COPY_SUCCESS_TIMEOUT, extractVariableInfo, renderVarInfo } from './brunoVarInfo';
+import store from 'providers/ReduxStore';
+import { updateVariableInScope } from 'providers/ReduxStore/slices/collections/actions';
+import { getVariableScope } from 'utils/collections';
 
 // Mock the dependencies
 jest.mock('@usebruno/common', () => ({
@@ -16,6 +19,7 @@ jest.mock('@usebruno/common', () => ({
 }));
 
 jest.mock('providers/ReduxStore', () => ({
+  __esModule: true,
   default: {
     dispatch: jest.fn(),
     getState: jest.fn()
@@ -46,18 +50,31 @@ jest.mock('utils/codemirror/autocomplete', () => ({
 }));
 
 // Mock CodeMirror
-global.CodeMirror = jest.fn((element, options) => {
-  const mockEditor = {
-    getValue: jest.fn(() => options.value || ''),
-    setValue: jest.fn(),
-    on: jest.fn(),
-    off: jest.fn(),
-    refresh: jest.fn(),
-    focus: jest.fn(),
-    options: options || {},
-    getWrapperElement: jest.fn(() => element)
-  };
-  return mockEditor;
+const mockEditorInstance = {
+  getValue: jest.fn(),
+  setValue: jest.fn(),
+  on: jest.fn(),
+  off: jest.fn(),
+  refresh: jest.fn(),
+  focus: jest.fn(),
+  setOption: jest.fn(),
+  getInputField: jest.fn(() => ({ blur: jest.fn() })),
+  options: {},
+  getWrapperElement: jest.fn(() => document.createElement('div'))
+};
+
+jest.mock('codemirror', () => {
+  const cmFn = jest.fn((element, options) => {
+    mockEditorInstance.options = options || {};
+    mockEditorInstance.getWrapperElement = jest.fn(() => element);
+    mockEditorInstance.getValue = jest.fn(() => options?.value || '');
+    return mockEditorInstance;
+  });
+  cmFn.defineOption = jest.fn();
+  cmFn.Init = {};
+  cmFn.on = jest.fn();
+  cmFn.off = jest.fn();
+  return cmFn;
 });
 
 describe('extractVariableInfo', () => {
@@ -565,6 +582,79 @@ describe('renderVarInfo', () => {
       expect(scopeBadge.textContent).toBe('OAuth2');
       expect(warningNote).not.toBeNull();
       expect(warningNote.textContent).toContain('OAuth2 token not found');
+    });
+  });
+
+  describe('runtime variable rendering and editing', () => {
+    it('should show Runtime scope badge and editable display for runtime variables', () => {
+      const collection = {
+        uid: 'col-1',
+        runtimeVariables: {
+          identifier: '7000000000'
+        }
+      };
+
+      getVariableScope.mockReturnValue({
+        type: 'runtime',
+        value: '7000000000',
+        data: { collection, variableName: 'identifier', value: '7000000000' }
+      });
+
+      const result = renderVarInfo(
+        { string: '{{identifier}}' },
+        { variables: { identifier: '7000000000' }, collection, item: null }
+      );
+
+      const scopeBadge = result.querySelector('.var-scope-badge');
+      expect(scopeBadge.textContent).toBe('Runtime');
+
+      const editableDisplay = result.querySelector('.var-value-editable-display');
+      expect(editableDisplay).not.toBeNull();
+      expect(editableDisplay.textContent).toBe('7000000000');
+
+      const readOnlyNote = result.querySelector('.var-readonly-note');
+      expect(readOnlyNote).toBeNull();
+    });
+
+    it('should dispatch updateVariableInScope when runtime variable is edited and blurred', () => {
+      let blurHandler;
+      mockEditorInstance.on.mockImplementation((event, handler) => {
+        if (event === 'blur') blurHandler = handler;
+      });
+      mockEditorInstance.getValue.mockReturnValue('7000000001');
+
+      const collection = {
+        uid: 'col-1',
+        runtimeVariables: {
+          identifier: '7000000000'
+        }
+      };
+
+      const scopeInfo = {
+        type: 'runtime',
+        value: '7000000000',
+        data: { collection, variableName: 'identifier', value: '7000000000' }
+      };
+      getVariableScope.mockReturnValue(scopeInfo);
+      updateVariableInScope.mockReturnValue(() => Promise.resolve());
+      const reduxStore = store.dispatch ? store : store.default;
+      reduxStore.dispatch.mockReturnValue(Promise.resolve());
+      reduxStore.getState.mockReturnValue({
+        collections: {
+          collections: [collection]
+        }
+      });
+
+      renderVarInfo(
+        { string: '{{identifier}}' },
+        { variables: { identifier: '7000000000' }, collection, item: null }
+      );
+
+      expect(blurHandler).toBeDefined();
+      mockEditorInstance.getValue.mockReturnValue('7000000001');
+      blurHandler();
+
+      expect(updateVariableInScope).toHaveBeenCalledWith('identifier', '7000000001', scopeInfo, 'col-1');
     });
   });
 });

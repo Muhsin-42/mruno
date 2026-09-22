@@ -1746,7 +1746,17 @@ export const getVariableScope = (variableName, collection, item) => {
     return null;
   }
 
-  // 1. Check Request Variables (highest priority)
+  // 1. Check Runtime Variables (highest priority during request execution, set via scripts or user inline)
+  const { runtimeVariables = {} } = collection;
+  if (variableName in runtimeVariables) {
+    return {
+      type: 'runtime',
+      value: runtimeVariables[variableName],
+      data: { collection, variableName, value: runtimeVariables[variableName] }
+    };
+  }
+
+  // 2. Check Request Variables (highest priority among persisted item variables)
   if (item) {
     const requestVars = item.draft ? get(item, 'draft.request.vars.req', []) : get(item, 'request.vars.req', []);
     const requestVar = requestVars.find((v) => v.name === variableName && v.enabled);
@@ -1759,7 +1769,7 @@ export const getVariableScope = (variableName, collection, item) => {
     }
   }
 
-  // 2. Check Folder Variables
+  // 3. Check Folder Variables
   const requestTreePath = getTreePathFromCollectionToItem(collection, item);
   for (let i = requestTreePath.length - 1; i >= 0; i--) {
     const pathItem = requestTreePath[i];
@@ -1782,7 +1792,7 @@ export const getVariableScope = (variableName, collection, item) => {
     }
   }
 
-  // 3. Check Environment Variables
+  // 4. Check Environment Variables
   if (collection.activeEnvironmentUid) {
     const environment = findEnvironmentInCollection(collection, collection.activeEnvironmentUid);
     if (environment && environment.variables) {
@@ -1801,7 +1811,7 @@ export const getVariableScope = (variableName, collection, item) => {
     }
   }
 
-  // 4. Check Collection Variables
+  // 5. Check Collection Variables
   // Check draft first, then fall back to root
   const collectionRoot = (collection.draft && collection.draft.root) || collection.root || {};
   const collectionVars = get(collectionRoot, 'request.vars.req', []);
@@ -1814,23 +1824,13 @@ export const getVariableScope = (variableName, collection, item) => {
     };
   }
 
-  // 5. Check Global Environment Variables
+  // 6. Check Global Environment Variables
   const { globalEnvironmentVariables = {} } = collection;
   if (variableName in globalEnvironmentVariables) {
     return {
       type: 'global',
       value: globalEnvironmentVariables[variableName],
       data: { variableName, value: globalEnvironmentVariables[variableName] }
-    };
-  }
-
-  // 6. Check Runtime Variables (set during request execution via scripts)
-  const { runtimeVariables = {} } = collection;
-  if (variableName in runtimeVariables) {
-    return {
-      type: 'runtime',
-      value: runtimeVariables[variableName],
-      data: { variableName, value: runtimeVariables[variableName], readonly: true }
     };
   }
 

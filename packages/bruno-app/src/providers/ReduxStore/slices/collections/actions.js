@@ -71,7 +71,8 @@ import {
   addTransientDirectory,
   addSaveTransientRequestModal,
   updatePathParam,
-  toggleCollection
+  toggleCollection,
+  updateRuntimeVariable
 } from './index';
 
 import { each } from 'lodash';
@@ -2279,16 +2280,32 @@ export const updateVariableInScope = (variableName, newValue, scopeInfo, collect
         return reject(new Error('Process environment variables cannot be edited'));
       }
 
-      if (type === 'runtime' || (collection && collection.runtimeVariables && collection.runtimeVariables[variableName])) {
-        return reject(new Error('Runtime variables are set by scripts and cannot be edited'));
-      }
-
       // Validate collection for non-global scopes
       if (type !== 'global' && !collection) {
         return reject(new Error('Collection not found'));
       }
 
+      // Handle runtime variables (set by scripts or user inline)
+      if (type === 'runtime' || (collection && collection.runtimeVariables && (variableName in collection.runtimeVariables))) {
+        dispatch(updateRuntimeVariable({
+          collectionUid,
+          key: variableName,
+          value: newValue
+        }));
+        toast.success(`Variable "${variableName}" updated`);
+        return resolve();
+      }
+
       switch (type) {
+        case 'runtime': {
+          dispatch(updateRuntimeVariable({
+            collectionUid,
+            key: variableName,
+            value: newValue
+          }));
+          toast.success(`Variable "${variableName}" updated`);
+          return resolve();
+        }
         case 'environment': {
           const { environment, variable } = data;
 

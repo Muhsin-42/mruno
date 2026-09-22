@@ -278,9 +278,9 @@ export const renderVarInfo = (token, options) => {
   }
 
   // Check if a runtime variable exists with the same name (even if scope is detected as collection/folder/environment)
-  const hasRuntimeVariable = collection && collection.runtimeVariables && collection.runtimeVariables[variableName];
-  // Check if variable is read-only (process.env, runtime, dynamic/faker, oauth2, and undefined variables cannot be edited)
-  const isReadOnly = scopeInfo.type === 'process.env' || scopeInfo.type === 'runtime' || scopeInfo.type === 'dynamic' || scopeInfo.type === 'oauth2' || scopeInfo.type === 'undefined' || hasRuntimeVariable;
+  const hasRuntimeVariable = collection && collection.runtimeVariables && (variableName in collection.runtimeVariables);
+  // Check if variable is read-only (process.env, dynamic/faker, oauth2, and undefined variables cannot be edited)
+  const isReadOnly = scopeInfo.type === 'process.env' || scopeInfo.type === 'dynamic' || scopeInfo.type === 'oauth2' || scopeInfo.type === 'undefined';
 
   // `??` preserves typed falsy values (false / 0); `||` would clobber them to ''.
   const rawValue = scopeInfo.value ?? '';
@@ -393,7 +393,7 @@ export const renderVarInfo = (token, options) => {
     const cmTheme = isDarkTheme ? 'monokai' : 'default';
 
     // Get all variables for syntax highlighting (but prevent recursive tooltips)
-    const allVariables = collection ? getAllVariables(collection, item) : {};
+    let allVariables = collection ? getAllVariables(collection, item) : {};
 
     const editorInitialValue = typeof rawValue === 'string' ? rawValue : JSON.stringify(rawValue, null, 2);
 
@@ -570,8 +570,8 @@ export const renderVarInfo = (token, options) => {
             // Re-fetch scopeInfo to get the updated variable reference after save
             const state = store.getState();
             const freshCollection = findCollectionByUid(state.collections.collections, collection.uid);
-            if (collection) {
-              const freshItem = item ? findItemInCollectionByItemUid(freshCollection, item.uid) : null;
+            const freshItem = item && freshCollection ? findItemInCollectionByItemUid(freshCollection, item.uid) : null;
+            if (freshCollection) {
               const updatedScopeInfo = getVariableScope(variableName, freshCollection, freshItem);
               if (updatedScopeInfo) {
                 scopeInfo = updatedScopeInfo;
@@ -580,10 +580,11 @@ export const renderVarInfo = (token, options) => {
 
             // Re-interpolate the new value to show the resolved value in display.
             // Use `??` so falsy-but-valid values (0 / false / '') survive the assignment.
+            allVariables = freshCollection ? getAllVariables(freshCollection, freshItem) : allVariables;
             const interpolatedValue = interpolate(newValue, allVariables);
             currentInterpolatedValue = interpolatedValue ?? '';
             // Check if the NEW value contains secret references and update live mask state
-            const newHasSecretRefs = containsSecretVariableReferences(newValue, collection, item);
+            const newHasSecretRefs = containsSecretVariableReferences(newValue, freshCollection || collection, item);
             currentShouldMaskValue = isSecret || newHasSecretRefs;
             updateValueDisplay(valueDisplay, currentInterpolatedValue, currentShouldMaskValue, isMasked, isRevealed);
           })
@@ -649,12 +650,6 @@ export const renderVarInfo = (token, options) => {
       readOnlyNote.className = 'var-readonly-note';
       readOnlyNote.setAttribute('data-testid', 'var-info-readonly-note');
       readOnlyNote.textContent = 'read-only';
-      into.appendChild(readOnlyNote);
-    } else if (scopeInfo.type === 'runtime' || hasRuntimeVariable) {
-      const readOnlyNote = document.createElement('div');
-      readOnlyNote.className = 'var-readonly-note';
-      readOnlyNote.setAttribute('data-testid', 'var-info-readonly-note');
-      readOnlyNote.textContent = 'Set by scripts (read-only)';
       into.appendChild(readOnlyNote);
     } else if (scopeInfo.type === 'oauth2') {
       const readOnlyNote = document.createElement('div');
